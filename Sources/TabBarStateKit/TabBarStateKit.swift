@@ -23,8 +23,8 @@ public final class TabBarStateModel {
         }
     }
 
-    /// Current appearance state of the TabBar.
     public private(set) var appearance: TabBarAppearance = .regular
+    public private(set) var platterBottomPadding: CGFloat = 0
 
     /// Attach KVO observer to the tab bar controller.
     /// Calling this more than once is ignored.
@@ -37,12 +37,14 @@ public final class TabBarStateModel {
         }
 
         if platterBounds == nil {
-            platterBounds = platters
+            let initialPlatter = platters
                 .filter { !$0.isHidden }
-                .max(by: { $0.bounds.width < $1.bounds.width })?
-                .bounds
+                .max(by: { $0.bounds.width < $1.bounds.width })
+            platterBounds = initialPlatter?.bounds
+            if let initialPlatter{
+                recomputePlatterBottomPadding(using: initialPlatter)
+            }
         }
-
         platters.forEach { platter in
             guard let content = platter.subviews.first(where: {
                 String(describing: type(of: $0)).hasSuffix("ContentView")
@@ -64,10 +66,21 @@ public final class TabBarStateModel {
             .sink { [weak self, weak platter] _ in
                 guard let self, let platter else { return }
                 self.platterBounds = platter.bounds
-                
+                self.recomputePlatterBottomPadding(using: platter)
             }
             .store(in :&cancellables)
-        
+    }
+
+    private func recomputePlatterBottomPadding(using platter: UIView) {
+        guard let tabBar = attachedTBC?.tabBar else { return }
+        tabBar.layoutIfNeeded()
+
+        // TabBar 座標系に変換
+        let frameInTabBar = platter.convert(platter.bounds, to: tabBar)
+        let raw = tabBar.bounds.maxY - frameInTabBar.maxY
+        let scale = UIScreen.main.scale
+        let clamped = max(0, raw)
+        platterBottomPadding = (clamped * scale).rounded() / scale
     }
 
     private func updateAppearance(oldValue: CGRect?) {
