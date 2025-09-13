@@ -55,6 +55,10 @@ public final class TabBarStateModel {
             observe(view: content, on: platter)
         }
     }
+    public func detach(){
+        cancellables.removeAll()
+        attachedTBC = nil
+    }
 
     // MARK: - Private
 
